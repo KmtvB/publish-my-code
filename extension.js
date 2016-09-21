@@ -1,22 +1,38 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 var vscode = require('vscode');
+var request = require('request')
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+function pastebinPublish(textToPublish) {
+    return new Promise((resolve, reject) => {
+        let api_url = "http://pastebin.com/api/api_post.php";
+        var data = {
+            api_dev_key: 'b9ef14dea69d9902a4aa9cbdc6e2fe5e',
+            api_option: 'paste',
+            api_paste_code: textToPublish,
+            api_paste_expire_date: '10M',
+            /*api_paste_private: '1', // 0:public 1:unlisted 2:private
+            api_paste_name: 'some_name',
+            api_paste_format: "javascript",
+            api_user_key: "" */
+        };
+        request.post(
+            {
+                url: api_url, 
+                formData: data
+            }, 
+            (err, httpResponse, body) => {
+                if (err)
+                    reject(body);
+                else
+                    resolve(body);
+            });
+    });
+    
+}
+
 function activate(context) {
-
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "publish-my-code" is now active!');
 
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with  registerCommand
-    // The commandId parameter must match the command field in package.json
-    var disposable = vscode.commands.registerCommand('extension.sayHello', function () {
-        // The code you place here will be executed every time your command is executed
-
-        // Display a message box to the user
+    var disposable = vscode.commands.registerCommand('extension.PublishMyCode', function () {
         let editor = vscode.window.activeTextEditor;
         if (!editor) {
             return;
@@ -24,15 +40,24 @@ function activate(context) {
 
         let selection =  editor.selection;
         let text = editor.document.getText(selection);
+        if (!text) {
+            return;
+        }  
 
-        vscode.window.showInformationMessage("Length is " + text.length);
+        pastebinPublish(text).then(
+            (result) => {
+                vscode.window.showInformationMessage(result);
+            },
+            (error) => {
+                vscode.window.showErrorMessage(error);
+            }
+        );
     });
 
     context.subscriptions.push(disposable);
 }
 exports.activate = activate;
 
-// this method is called when your extension is deactivated
-function deactivate() {
-}
+function deactivate() {}
 exports.deactivate = deactivate;
+
