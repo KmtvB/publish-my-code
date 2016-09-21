@@ -16,17 +16,45 @@ function pastebinPublish(textToPublish) {
         };
         request.post(
             {
-                url: api_url, 
+                url: api_url,
                 formData: data
-            }, 
+            },
             (err, httpResponse, body) => {
                 if (err)
                     reject(body);
                 else
                     resolve(body);
-            });
+            }
+        );
     });
-    
+}
+
+function gistPublish(textToPublish) {
+    return new Promise((resolve, reject) => {
+        let api_url = "http://pastebin.com/api/api_post.php";
+        var data = {
+            "description": "the description for this gist",
+            "public": true,
+            "files": {
+                "fileName": {
+                    "content": textToPublish
+                }
+            }
+        };
+
+        request.post(
+            {
+                url: api_url,
+                formData: data
+            },
+            (err, httpResponse, body) => {
+                if (err)
+                    reject(body);
+                else
+                    resolve(body);
+            }
+        );
+    });
 }
 
 function activate(context) {
@@ -38,20 +66,35 @@ function activate(context) {
             return;
         }
 
-        let selection =  editor.selection;
+        let selection = editor.selection;
         let text = editor.document.getText(selection);
         if (!text) {
             return;
         }  
 
-        pastebinPublish(text).then(
-            (result) => {
-                vscode.window.showInformationMessage(result);
-            },
-            (error) => {
-                vscode.window.showErrorMessage(error);
+        let siteItems = ['gist.github.com', 'pastebin.com'];
+        
+        vscode.window.showQuickPick(siteItems).then(result => {
+            var handle;
+
+            if (result === 'gist.github.com') {
+                handle = gistPublish;
+            } else if (result === 'pastebin.com') {
+                handle = pastebinPublish;
+            } else {
+                console.log('nothing was selected');
+                return;
             }
-        );
+
+            handle(text).then(
+                (result) => {
+                    vscode.window.showInformationMessage(result);
+                },
+                (error) => {
+                    vscode.window.showErrorMessage(error);
+                }
+            );
+        });   
     });
 
     context.subscriptions.push(disposable);
