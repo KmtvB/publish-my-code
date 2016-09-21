@@ -20,10 +20,10 @@ function pastebinPublish(textToPublish) {
                 formData: data
             },
             (err, httpResponse, body) => {
-                if (err)
-                    reject(body);
-                else
+                if (!err)
                     resolve(body);
+                else
+                    reject(body);
             }
         );
     });
@@ -48,59 +48,83 @@ function gistPublish(textToPublish) {
                 formData: data
             },
             (err, httpResponse, body) => {
-                if (err)
-                    reject(body);
-                else
+                if (!err)
                     resolve(body);
+                else
+                    reject(body);
             }
         );
+    });
+}
+
+//return selected text. If nothing is selected, ask to send whole document and return it if yes
+function findTextToSend(editor) {
+    return new Promise(resolve => {
+        let selection = editor.selection;
+        let selectedText = editor.document.getText(selection);
+
+        if (selectedText) {
+            resolve(selectedText);
+        } else {
+            vscode.window.showQuickPick(
+                ['Yes', 'No'],
+                { placeHolder: 'Are you sure that you want paste whole document?' }
+            ).then(answer => {
+                if (answer === 'Yes') {
+                    resolve(editor.document.getText());
+                }
+            });
+        }
     });
 }
 
 function activate(context) {
     console.log('Congratulations, your extension "publish-my-code" is now active!');
 
-    var disposable = vscode.commands.registerCommand('extension.PublishMyCode', function () {
-        let editor = vscode.window.activeTextEditor;
-        if (!editor) {
+    var disposable = vscode.commands.registerCommand('extension.PublishMyCode', function () {       
+        var editor = vscode.window.activeTextEditor;
+        if (!editor) 
             return;
-        }
+        var textToSend = "";
 
-        let selection = editor.selection;
-        let text = editor.document.getText(selection);
-        if (!text) {
-            return;
-        }  
-
-        let siteItems = ['gist.github.com', 'pastebin.com'];
-        
-        vscode.window.showQuickPick(siteItems).then(result => {
-            var handle;
-
-            if (result === 'gist.github.com') {
-                handle = gistPublish;
-            } else if (result === 'pastebin.com') {
-                handle = pastebinPublish;
-            } else {
-                console.log('nothing was selected');
-                return;
-            }
-
-            handle(text).then(
-                (result) => {
-                    vscode.window.showInformationMessage(result);
-                },
-                (error) => {
-                    vscode.window.showErrorMessage(error);
+        Promise.resolve(editor)
+        .then(
+            editor => {  
+                return findTextToSend(editor);
+            })
+        .then(
+            text => {
+                textToSend = text; //store text
+                let siteItems = ['gist.github.com', 'pastebin.com'];
+                return vscode.window.showQuickPick(siteItems);
+            })
+        .then(
+            answer => {
+                let senderFunction;           
+                if (answer === 'gist.github.com') {
+                    senderFunction = gistPublish;
+                } else if (answer === 'pastebin.com') {
+                    senderFunction = pastebinPublish;
+                } else {
+                    console.log('nothing was selected');
+                    return;
                 }
-            );
-        });   
+                return senderFunction(textToSend);
+            })
+        .then(
+            result => {
+                vscode.window.showInformationMessage(result);
+            })
+        .catch(
+            error => {
+                vscode.window.showErrorMessage(error);
+            })
     });
 
     context.subscriptions.push(disposable);
 }
 exports.activate = activate;
 
-function deactivate() {}
+function deactivate() { }
 exports.deactivate = deactivate;
 
